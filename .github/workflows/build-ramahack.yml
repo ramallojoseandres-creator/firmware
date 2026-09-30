@@ -1,0 +1,28 @@
+name: Build RamaHack
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install PlatformIO
+        run: pip install platformio
+      - name: Build
+        run: pio run -e CYD-2432S028
+      - name: Rename output
+        run: |
+          cp .pio/build/CYD-2432S028/firmware.bin RamaHack.bin || true
+          cp .pio/build/CYD-2432S028/*.bin . || true
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: RamaHack
+          path: |
+            RamaHack.bin
+            .pio/build/CYD-2432S028/firmware.bin
+            .pio/build/CYD-2432S028/bootloader.bin
+            .pio/build/CYD-2432S028/partitions.bin
