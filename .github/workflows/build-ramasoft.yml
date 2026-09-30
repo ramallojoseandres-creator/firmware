@@ -11,11 +11,6 @@ jobs:
           python-version: "3.11"
       - name: Install PlatformIO
         run: pip install platformio
-          ./ramasoft.sh
-      - name: Prepare deauth
-        run: |
-          chmod +x ./deauth_setup.sh || true
-          ./deauth_setup.sh || true
       - name: Build
         run: pio run -e esp32-s3-devkitc-1-psram
       - name: Rename output
@@ -29,4 +24,3 @@ jobs:
             .pio/build/esp32-s3-devkitc-1-psram/firmware.bin
             .pio/build/esp32-s3-devkitc-1-psram/bootloader.bin
             .pio/build/esp32-s3-devkitc-1-psram/partitions.bin
-
