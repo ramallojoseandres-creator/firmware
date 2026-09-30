@@ -11,9 +11,6 @@ jobs:
           python-version: "3.11"
       - name: Install PlatformIO
         run: pip install platformio
-      - name: Rebrand to RamaSoft
-        run: |
-          chmod +x ./ramasoft.sh
           ./ramasoft.sh
       - name: Prepare deauth
         run: |
@@ -32,3 +29,4 @@ jobs:
             .pio/build/esp32-s3-devkitc-1-psram/firmware.bin
             .pio/build/esp32-s3-devkitc-1-psram/bootloader.bin
             .pio/build/esp32-s3-devkitc-1-psram/partitions.bin
+
