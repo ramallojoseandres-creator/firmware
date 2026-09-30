@@ -1,4 +1,4 @@
-name: Build RamaHack
+name: Build RamaSoft S3
 on:
   workflow_dispatch:
 jobs:
@@ -12,12 +12,12 @@ jobs:
       - name: Install PlatformIO
         run: pip install platformio
       - name: Build
-        run: pio run -e CYD-2432S028
+        run: pio run -e esp32-s3-devkitc-1-psram
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: RamaHack
+          name: RamaSoft-S3
           path: |
-            .pio/build/CYD-2432S028/firmware.bin
-            .pio/build/CYD-2432S028/bootloader.bin
-            .pio/build/CYD-2432S028/partitions.bin
+            .pio/build/esp32-s3-devkitc-1-psram/firmware.bin
+            .pio/build/esp32-s3-devkitc-1-psram/bootloader.bin
+            .pio/build/esp32-s3-devkitc-1-psram/partitions.bin
