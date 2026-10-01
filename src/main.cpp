@@ -244,10 +244,13 @@ void setup_gpio() {
  **  Config tft
  *********************************************************************/
 void begin_tft() {
-    Serial.println(">>> DBG tft A rotation/invert"); Serial.flush(); delay(30);
+    Serial.println(">>> DBG tft A1 before setRotation"); Serial.flush(); delay(30);
     tft.setRotation(bruceConfigPins.rotation); // sometimes it misses the first command
+    Serial.println(">>> DBG tft A2 before invertDisplay"); Serial.flush(); delay(30);
     tft.invertDisplay(bruceConfig.colorInverted);
+    Serial.println(">>> DBG tft A3 before setRotation2"); Serial.flush(); delay(30);
     tft.setRotation(bruceConfigPins.rotation);
+    Serial.println(">>> DBG tft A4 before width/height"); Serial.flush(); delay(30);
     tftWidth = tft.width();
 #ifdef HAS_TOUCH
     tftHeight = tft.height() - 20;
