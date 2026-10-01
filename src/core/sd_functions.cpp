@@ -71,8 +71,24 @@ bool setupSdCard(uint8_t maxFiles) {
 #else
     // Not using InputHandler (SdCard on default &SPI bus)
     if (task) {
+#ifdef SDCARD_SHARES_TFT_BUS
+        // USE_TFT_eSPI_TOUCH board whose SD is wired on the display's own SPI
+        // pins: mount it on the display's SPI instance, not the global SPI
+        // object, so two controllers don't fight over the same pins.
+        SPIClass *bus = acquireSPIBus(
+            bruceConfigPins.SDCARD_bus.sck, bruceConfigPins.SDCARD_bus.miso, bruceConfigPins.SDCARD_bus.mosi
+        );
+        if (bus != nullptr && bus != &sdcardSPI) {
+            Serial.println("SDCard sharing the TFT SPI bus (eSPI touch board)");
+            if (!SD.begin(bruceConfigPins.SDCARD_bus.cs, *bus, 4000000UL, "/sd", maxFiles)) result = false;
+        } else {
+            if (!SD.begin((int8_t)bruceConfigPins.SDCARD_bus.cs, SPI, 4000000UL, "/sd", maxFiles))
+                result = false;
+        }
+#else
         if (!SD.begin((int8_t)bruceConfigPins.SDCARD_bus.cs, SPI, 4000000UL, "/sd", maxFiles)) result = false;
         // Serial.println("Task not activated");
+#endif
     } else {
         // acquireSPIBus() never begin()s the display's bus (it's already running), so a non-null,
         // non-sdcardSPI result means these pins are physically the display's own bus. Reusing the
