@@ -1,11 +1,19 @@
 #include "core/bus_HAL.h"
 #include "core/powerSave.h"
+#include "core/utils.h"
+#include <Arduino.h>
+#include <LittleFS.h>
+#include <interface.h>
 
-/***************************************************************************************
-** Function name: _setup_gpio()
-** Location: main.cpp
-** Description:   initial setup for the device
-***************************************************************************************/
+// This board drives an ILI9341 + resistive XPT2046 touchscreen over the
+// TFT_eSPI SPI bus (no physical nav buttons), so input is handled through
+// tft.getTouch() exactly like the CYD-2432S028 variant.
+#define XPT2046_CS TOUCH_CS
+
+// A GPIO left undefined in this codebase resolves to -1, which becomes 255
+// when stored in a uint8_t. Guard every pin op so an unused peripheral never
+// spams "perimanGetPinBus(): Invalid pin: 255".
+static inline bool validPin(int p) { return p >= 0 && p < 254; }
 
 // Power handler for battery detection
 #ifdef XPOWERS_CHIP_BQ25896
@@ -14,26 +22,33 @@
 XPowersPPM PPM;
 #endif
 
+/***************************************************************************************
+** Function name: _setup_gpio()
+** Location: main.cpp
+** Description:   initial setup for the device
+***************************************************************************************/
 void _setup_gpio() {
+    // Keep the touch controller deselected until we explicitly talk to it
+    if (validPin(XPT2046_CS)) {
+        pinMode(XPT2046_CS, OUTPUT);
+        digitalWrite(XPT2046_CS, HIGH);
+    }
 
-    pinMode(UP_BTN, INPUT); // Sets the power btn as an INPUT
-    pinMode(SEL_BTN, INPUT);
-    pinMode(DW_BTN, INPUT);
-    pinMode(R_BTN, INPUT);
-    pinMode(L_BTN, INPUT);
+    // Block CC1101 / NRF24 at boot only if the board actually wires them
+    if (validPin(CC1101_SS_PIN)) {
+        pinMode(CC1101_SS_PIN, OUTPUT);
+        digitalWrite(CC1101_SS_PIN, HIGH);
+        bruceConfigPins.rfModule = CC1101_SPI_MODULE;
+    }
+    if (validPin(NRF24_SS_PIN)) {
+        pinMode(NRF24_SS_PIN, OUTPUT);
+        digitalWrite(NRF24_SS_PIN, HIGH);
+    }
 
-    pinMode(CC1101_SS_PIN, OUTPUT);
-    pinMode(NRF24_SS_PIN, OUTPUT);
-
-    digitalWrite(CC1101_SS_PIN, HIGH);
-    digitalWrite(NRF24_SS_PIN, HIGH);
-    // Starts SPI instance for CC1101 and NRF24 with CS pins blocking communication at start
-
-    bruceConfigPins.rfModule = CC1101_SPI_MODULE;
     bruceConfigPins.irRx = RXLED;
+
     setSysI2CBus(&Wire); // PMU lives on the default Wire object
     Wire.setPins(SYS_I2C_SDA, SYS_I2C_SCL);
-    // Wire.begin();
     bool pmu_ret = false;
     Wire.begin(SYS_I2C_SDA, SYS_I2C_SCL);
     pmu_ret = PPM.init(Wire, SYS_I2C_SDA, SYS_I2C_SCL, BQ25896_SLAVE_ADDRESS);
@@ -52,10 +67,51 @@ void _setup_gpio() {
         PPM.enableCharge();
     }
 }
-bool isCharging() {
-    // PPM.disableBatterPowerPath();
-    return PPM.isCharging();
+
+/***************************************************************************************
+** Function name: _post_setup_gpio()
+** Location: main.cpp
+** Description:   second stage gpio setup, runs after the display is initialized
+***************************************************************************************/
+void _post_setup_gpio() {
+    // Touch calibration for the TFT_eSPI resistive driver
+    if (validPin(TOUCH_CS)) {
+        pinMode(TOUCH_CS, OUTPUT);
+        uint16_t calData[5];
+        File caldata = LittleFS.open("/calData", "r");
+
+        if (!caldata) {
+            tft.setRotation(ROTATION);
+            tft.calibrateTouch(calData, TFT_WHITE, TFT_BLACK, 10);
+
+            caldata = LittleFS.open("/calData", "w");
+            if (caldata) {
+                caldata.printf(
+                    "%d\n%d\n%d\n%d\n%d\n", calData[0], calData[1], calData[2], calData[3], calData[4]
+                );
+                caldata.close();
+            }
+        } else {
+            Serial.print("\ntft Calibration data: ");
+            for (int i = 0; i < 5; i++) {
+                String line = caldata.readStringUntil('\n');
+                calData[i] = line.toInt();
+                Serial.printf("%d, ", calData[i]);
+            }
+            Serial.println();
+            caldata.close();
+        }
+        tft.setTouch(calData);
+    }
+
+    // Make sure the backlight is on after the display is up
+    if (validPin(TFT_BL)) {
+        pinMode(TFT_BL, OUTPUT);
+        analogWrite(TFT_BL, 255);
+    }
 }
+
+bool isCharging() { return PPM.isCharging(); }
 
 int getBattery() {
     int voltage = PPM.getBattVoltage();
@@ -80,6 +136,7 @@ int getBattery() {
 ** set brightness value
 **********************************************************************/
 void _setBrightness(uint8_t brightval) {
+    if (!validPin(TFT_BL)) return;
     if (brightval == 0) {
         analogWrite(TFT_BL, brightval);
     } else {
@@ -93,34 +150,50 @@ void _setBrightness(uint8_t brightval) {
 ** Handles the variables PrevPress, NextPress, SelPress, AnyKeyPress and EscPress
 **********************************************************************/
 void InputHandler(void) {
-    static unsigned long tm = 0;
-    if (millis() - tm < 200 && !LongPress) return;
-    bool _u = digitalRead(UP_BTN);
-    bool _d = digitalRead(DW_BTN);
-    bool _l = digitalRead(L_BTN);
-    bool _r = digitalRead(R_BTN);
-    bool _s = digitalRead(SEL_BTN);
+    static long d_tmp = 0;
+    if (millis() - d_tmp > 200 || LongPress) {
+        TouchPoint t;
+        checkPowerSaveTime();
+        bool _IH_touched = tft.getTouch(&t.x, &t.y);
+        if (_IH_touched) {
+            NextPress = false;
+            PrevPress = false;
+            UpPress = false;
+            DownPress = false;
+            SelPress = false;
+            EscPress = false;
+            AnyKeyPress = false;
+            NextPagePress = false;
+            PrevPagePress = false;
+            touchPoint.pressed = false;
+            _IH_touched = false;
 
-    if (!_s || !_u || !_d || !_r || !_l) {
-        tm = millis();
-        if (!wakeUpScreen()) AnyKeyPress = true;
-        else return;
-    }
-    if (!_l) { PrevPress = true; }
-    if (!_r) { NextPress = true; }
-    if (!_u) {
-        UpPress = true;
-        PrevPagePress = true;
-    }
-    if (!_d) {
-        DownPress = true;
-        NextPagePress = true;
-    }
-    if (!_s) { SelPress = true; }
-    if (!_l && !_r) {
-        EscPress = true;
-        NextPress = false;
-        PrevPress = false;
+            if (bruceConfigPins.rotation == 3) {
+                t.y = (tftHeight + 20) - t.y;
+                t.x = tftWidth - t.x;
+            }
+            if (bruceConfigPins.rotation == 0) {
+                int tmp = t.x;
+                t.x = tftWidth - t.y;
+                t.y = tmp;
+            }
+            if (bruceConfigPins.rotation == 2) {
+                int tmp = t.x;
+                t.x = t.y;
+                t.y = (tftHeight + 20) - tmp;
+            }
+
+            if (!wakeUpScreen()) AnyKeyPress = true;
+            else goto END;
+
+            // Touch point global variable
+            touchPoint.x = t.x;
+            touchPoint.y = t.y;
+            touchPoint.pressed = true;
+            touchHeatMap(touchPoint);
+        END:
+            d_tmp = millis();
+        }
     }
 }
 
@@ -129,48 +202,11 @@ void InputHandler(void) {
 ** location: mykeyboard.cpp
 ** Turns off the device (or try to)
 **********************************************************************/
-void powerOff() {
-    esp_sleep_enable_ext0_wakeup((gpio_num_t)SEL_BTN, BTN_ACT);
-    esp_deep_sleep_start();
-}
+void powerOff() {}
 
 /*********************************************************************
 ** Function: checkReboot
 ** location: mykeyboard.cpp
 ** Btn logic to turn off the device (name is odd btw)
 **********************************************************************/
-void checkReboot() {
-    int countDown = 0;
-    /* Long press power off */
-    if (digitalRead(L_BTN) == BTN_ACT && digitalRead(R_BTN) == BTN_ACT) {
-        uint32_t time_count = millis();
-        while (digitalRead(L_BTN) == BTN_ACT && digitalRead(R_BTN) == BTN_ACT) {
-            // Display poweroff bar only if holding button
-            if (millis() - time_count > 500) {
-                if (countDown == 0) {
-                    int textWidth = tft.textWidth("PWR OFF IN 3/3", 1);
-                    tft.fillRect(tftWidth / 2 - textWidth / 2, 7, textWidth, 18, bruceConfig.bgColor);
-                }
-                tft.setTextSize(1);
-                tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-                countDown = (millis() - time_count) / 1000 + 1;
-                if (countDown < 4)
-                    tft.drawCentreString("PWR OFF IN " + String(countDown) + "/3", tftWidth / 2, 12, 1);
-                else {
-                    tft.fillScreen(bruceConfig.bgColor);
-                    while (digitalRead(L_BTN) == BTN_ACT || digitalRead(R_BTN) == BTN_ACT);
-                    delay(200);
-                    powerOff();
-                }
-                delay(10);
-            }
-        }
-
-        // Clear text after releasing the button
-        delay(30);
-        if (millis() - time_count > 500) {
-            tft.fillRect(60, 12, tftWidth - 60, tft.fontHeight(1), bruceConfig.bgColor);
-            drawStatusBar();
-        }
-    }
-}
+void checkReboot() {}
