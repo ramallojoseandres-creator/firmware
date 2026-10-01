@@ -492,9 +492,21 @@ void setup() {
     _pre_storage_gpio();
     begin_storage();
     RAM_LOG("after-storage"); // bruceConfig/bruceConfigPins loaded from FS
+    Serial.println(">>> DBG before begin_tft");
+    Serial.flush();
+    delay(50);
     begin_tft();
+    Serial.println(">>> DBG after begin_tft");
+    Serial.flush();
+    delay(50);
     init_clock();
+    Serial.println(">>> DBG after init_clock");
+    Serial.flush();
+    delay(50);
     init_led();
+    Serial.println(">>> DBG after init_led");
+    Serial.flush();
+    delay(50);
     RAM_LOG("after-tft-clock-led");
 
     options.reserve(20); // preallocate some options space to avoid fragmentation
