@@ -155,6 +155,7 @@ void _setBrightness(uint8_t brightval) {
 ** Handles the variables PrevPress, NextPress, SelPress, AnyKeyPress and EscPress
 **********************************************************************/
 void InputHandler(void) {
+    return; // TEMP diagnostic: disable touch reads to test if they corrupt the display
     static long d_tmp = 0;
     if (millis() - d_tmp > 200 || LongPress) {
         TouchPoint t;
