@@ -120,6 +120,11 @@ void _post_setup_gpio() {
         pinMode(TFT_BL, OUTPUT);
         analogWrite(TFT_BL, 255);
     }
+
+    // This ILI9341 panel renders normal colors WITHOUT inversion. Force it off
+    // so a stale/inverted config value doesn't leave the whole UI white.
+    bruceConfig.colorInverted = 0;
+    tft.invertDisplay(0);
 }
 
 /***************************************************************************************
