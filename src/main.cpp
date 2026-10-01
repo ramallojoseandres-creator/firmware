@@ -244,24 +244,17 @@ void setup_gpio() {
  **  Config tft
  *********************************************************************/
 void begin_tft() {
-    Serial.println(">>> DBG tft A1 before setRotation"); Serial.flush(); delay(30);
     tft.setRotation(bruceConfigPins.rotation); // sometimes it misses the first command
-    Serial.println(">>> DBG tft A2 before invertDisplay"); Serial.flush(); delay(30);
     tft.invertDisplay(bruceConfig.colorInverted);
-    Serial.println(">>> DBG tft A3 before setRotation2"); Serial.flush(); delay(30);
     tft.setRotation(bruceConfigPins.rotation);
-    Serial.println(">>> DBG tft A4 before width/height"); Serial.flush(); delay(30);
     tftWidth = tft.width();
 #ifdef HAS_TOUCH
     tftHeight = tft.height() - 20;
 #else
     tftHeight = tft.height();
 #endif
-    Serial.println(">>> DBG tft B before resetTftDisplay"); Serial.flush(); delay(30);
     resetTftDisplay();
-    Serial.println(">>> DBG tft C before setBrightness"); Serial.flush(); delay(30);
     setBrightness(bruceConfig.bright, false);
-    Serial.println(">>> DBG tft D end"); Serial.flush(); delay(30);
 }
 
 /*********************************************************************
@@ -499,21 +492,9 @@ void setup() {
     _pre_storage_gpio();
     begin_storage();
     RAM_LOG("after-storage"); // bruceConfig/bruceConfigPins loaded from FS
-    Serial.println(">>> DBG before begin_tft");
-    Serial.flush();
-    delay(50);
     begin_tft();
-    Serial.println(">>> DBG after begin_tft");
-    Serial.flush();
-    delay(50);
     init_clock();
-    Serial.println(">>> DBG after init_clock");
-    Serial.flush();
-    delay(50);
     init_led();
-    Serial.println(">>> DBG after init_led");
-    Serial.flush();
-    delay(50);
     RAM_LOG("after-tft-clock-led");
 
     options.reserve(20); // preallocate some options space to avoid fragmentation

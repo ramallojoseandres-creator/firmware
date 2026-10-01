@@ -76,11 +76,14 @@ static const uint8_t SCL = 9;
 #define SPI_READ_FREQUENCY 20000000
 #define SPI_TOUCH_FREQUENCY 2500000
 
-// ---- MicroSD (shared SPI bus, CS on GPIO4) ----
-#define SDCARD_CS 4
-#define SDCARD_SCK 12
-#define SDCARD_MISO 13
-#define SDCARD_MOSI 11
+// ---- MicroSD ----
+// Temporarily disabled: mounting the SD on the display's shared SPI bus leaves
+// that bus unusable and crashes the first TFT op at boot (boot loop). Re-enable
+// once SD/display bus sharing is sorted (CS 4, bus 11/12/13).
+#define SDCARD_CS -1
+#define SDCARD_SCK -1
+#define SDCARD_MISO -1
+#define SDCARD_MOSI -1
 
 // ---- Secondary SPI bus used by Bruce for RF modules (shares the TFT bus) ----
 #define SPI_SCK_PIN 12
