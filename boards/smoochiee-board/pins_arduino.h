@@ -110,12 +110,14 @@ static const uint8_t SCL = 9;
 #define GPS_SERIAL_RX 47  // ESP RX <- GPS TX
 
 // ---- Onboard RGB LED (ESP32-S3-DevKitC-1, WS2812 on GPIO48) ----
-#define HAS_RGB_LED 1
-#define RGB_LED 48
-#define LED_TYPE WS2812B
-#define LED_ORDER GRB
-#define LED_TYPE_IS_RGBW 0
-#define LED_COUNT 1
-#define LED_COLOR_STEP 15
+// Temporarily disabled: FastLED's RMT path hangs at boot on the ESP32-S3
+// (watchdog reset / boot loop). Re-enable once the S3 RMT driver is sorted.
+// #define HAS_RGB_LED 1
+// #define RGB_LED 48
+// #define LED_TYPE WS2812B
+// #define LED_ORDER GRB
+// #define LED_TYPE_IS_RGBW 0
+// #define LED_COUNT 1
+// #define LED_COLOR_STEP 15
 
 #endif /* Pins_Arduino_h */

@@ -55,24 +55,16 @@ void _setup_gpio() {
 ** Description:   second stage gpio setup, runs after the display is initialized
 ***************************************************************************************/
 void _post_setup_gpio() {
-    // Touch calibration for the TFT_eSPI resistive driver
+    // Touch setup for the TFT_eSPI resistive driver.
+    // We only APPLY a saved calibration here; we never run the blocking
+    // calibrateTouch() at boot, so the device always reaches the menu even
+    // when the touchscreen is not wired yet. Once the touch is wired, a
+    // one-time calibration pass can be enabled to generate /calData.
     if (validPin(TOUCH_CS)) {
         pinMode(TOUCH_CS, OUTPUT);
         uint16_t calData[5];
         File caldata = LittleFS.open("/calData", "r");
-
-        if (!caldata) {
-            tft.setRotation(ROTATION);
-            tft.calibrateTouch(calData, TFT_WHITE, TFT_BLACK, 10);
-
-            caldata = LittleFS.open("/calData", "w");
-            if (caldata) {
-                caldata.printf(
-                    "%d\n%d\n%d\n%d\n%d\n", calData[0], calData[1], calData[2], calData[3], calData[4]
-                );
-                caldata.close();
-            }
-        } else {
+        if (caldata) {
             Serial.print("\ntft Calibration data: ");
             for (int i = 0; i < 5; i++) {
                 String line = caldata.readStringUntil('\n');
@@ -81,8 +73,10 @@ void _post_setup_gpio() {
             }
             Serial.println();
             caldata.close();
+            tft.setTouch(calData);
+        } else {
+            Serial.println("No /calData yet - run touch calibration from the menu.");
         }
-        tft.setTouch(calData);
     }
 
     // Make sure the backlight is on after the display is up
