@@ -75,13 +75,43 @@ void _post_setup_gpio() {
             caldata.close();
             tft.setTouch(calData);
         } else {
-            // No saved calibration: apply a safe default so getTouch() never
-            // divides by zero (which crashes/boot-loops the device). Rough
-            // mapping for a 240x320 ILI9341 + XPT2046; refine with a real
-            // calibration pass once the touchscreen is wired.
+            // No saved calibration yet. Apply a safe default first so getTouch()
+            // never divides by zero (which crash-loops the device). Then offer a
+            // one-time calibration: if the user HOLDS the screen during this short
+            // window we run the real calibration and save it; otherwise we boot
+            // straight to the menu with the default. This way a disconnected or
+            // badly wired touch never hangs the boot.
             uint16_t defCal[5] = {300, 3600, 300, 3600, 7};
             tft.setTouch(defCal);
-            Serial.println("No /calData - using default touch calibration.");
+            Serial.println("No /calData - default cal; hold screen to calibrate.");
+
+            tft.setRotation(ROTATION);
+            tft.fillScreen(TFT_BLACK);
+            tft.setTextColor(TFT_WHITE, TFT_BLACK);
+            tft.drawCentreString("Hold screen to calibrate", tft.width() / 2, tft.height() / 2, 2);
+
+            uint32_t start = millis();
+            int heldCount = 0;
+            while (millis() - start < 2500) {
+                uint16_t tx, ty;
+                if (tft.getTouch(&tx, &ty)) heldCount++;
+                else heldCount = 0;
+                if (heldCount > 4) { // sustained press -> the touch is really there
+                    tft.calibrateTouch(calData, TFT_WHITE, TFT_BLACK, 10);
+                    File w = LittleFS.open("/calData", "w");
+                    if (w) {
+                        w.printf(
+                            "%d\n%d\n%d\n%d\n%d\n",
+                            calData[0], calData[1], calData[2], calData[3], calData[4]
+                        );
+                        w.close();
+                    }
+                    tft.setTouch(calData);
+                    Serial.println("Touch calibrated and saved to /calData.");
+                    break;
+                }
+                delay(50);
+            }
         }
     }
 
