@@ -3,11 +3,11 @@
 #include "core/utils.h"
 #include <Arduino.h>
 #include <LittleFS.h>
+#include <Wire.h>
 #include <interface.h>
 
-// This board drives an ILI9341 + resistive XPT2046 touchscreen over the
-// TFT_eSPI SPI bus (no physical nav buttons), so input is handled through
-// tft.getTouch() exactly like the CYD-2432S028 variant.
+// ILI9341 + resistive XPT2046 touchscreen on the TFT_eSPI SPI bus (no physical
+// nav buttons), so input is handled through tft.getTouch() like the CYD boards.
 #define XPT2046_CS TOUCH_CS
 
 // A GPIO left undefined in this codebase resolves to -1, which becomes 255
@@ -15,26 +15,17 @@
 // spams "perimanGetPinBus(): Invalid pin: 255".
 static inline bool validPin(int p) { return p >= 0 && p < 254; }
 
-// Power handler for battery detection
-#ifdef XPOWERS_CHIP_BQ25896
-#include <Wire.h>
-#include <XPowersLib.h>
-XPowersPPM PPM;
-#endif
-
 /***************************************************************************************
 ** Function name: _setup_gpio()
 ** Location: main.cpp
 ** Description:   initial setup for the device
 ***************************************************************************************/
 void _setup_gpio() {
-    // Keep the touch controller deselected until we explicitly talk to it
+    // Keep SPI chip-selects deselected until we explicitly talk to each device
     if (validPin(XPT2046_CS)) {
         pinMode(XPT2046_CS, OUTPUT);
         digitalWrite(XPT2046_CS, HIGH);
     }
-
-    // Block CC1101 / NRF24 at boot only if the board actually wires them
     if (validPin(CC1101_SS_PIN)) {
         pinMode(CC1101_SS_PIN, OUTPUT);
         digitalWrite(CC1101_SS_PIN, HIGH);
@@ -44,27 +35,17 @@ void _setup_gpio() {
         pinMode(NRF24_SS_PIN, OUTPUT);
         digitalWrite(NRF24_SS_PIN, HIGH);
     }
+    if (validPin(SDCARD_CS)) {
+        pinMode(SDCARD_CS, OUTPUT);
+        digitalWrite(SDCARD_CS, HIGH);
+    }
 
     bruceConfigPins.irRx = RXLED;
 
-    setSysI2CBus(&Wire); // PMU lives on the default Wire object
-    Wire.setPins(SYS_I2C_SDA, SYS_I2C_SCL);
-    bool pmu_ret = false;
-    Wire.begin(SYS_I2C_SDA, SYS_I2C_SCL);
-    pmu_ret = PPM.init(Wire, SYS_I2C_SDA, SYS_I2C_SCL, BQ25896_SLAVE_ADDRESS);
-    if (pmu_ret) {
-        PPM.setSysPowerDownVoltage(3300);
-        PPM.setInputCurrentLimit(3250);
-        Serial.printf("getInputCurrentLimit: %d mA\n", PPM.getInputCurrentLimit());
-        PPM.disableCurrentLimitPin();
-        PPM.setChargeTargetVoltage(4208);
-        PPM.setPrechargeCurr(64);
-        PPM.setChargerConstantCurr(832);
-        PPM.getChargerConstantCurr();
-        Serial.printf("getChargerConstantCurr: %d mA\n", PPM.getChargerConstantCurr());
-        PPM.enableMeasure(PowersBQ25896::CONTINUOUS);
-        PPM.disableOTG();
-        PPM.enableCharge();
+    // System I2C bus (PN532 and any other I2C peripheral)
+    if (validPin(SYS_I2C_SDA) && validPin(SYS_I2C_SCL)) {
+        setSysI2CBus(&Wire);
+        Wire.begin(SYS_I2C_SDA, SYS_I2C_SCL);
     }
 }
 
@@ -111,24 +92,13 @@ void _post_setup_gpio() {
     }
 }
 
-bool isCharging() { return PPM.isCharging(); }
+/***************************************************************************************
+** Battery: this board runs the LiPo straight to 3V3 (no fuel gauge / PMU),
+** so there is nothing to measure.
+***************************************************************************************/
+bool isCharging() { return false; }
 
-int getBattery() {
-    int voltage = PPM.getBattVoltage();
-    int percent = (voltage - 3300) * 100 / (float)(4150 - 3350);
-
-    if (percent < 0) return 1;
-    if (percent > 100) percent = 100;
-
-    if (PPM.isCharging() && percent >= 97) {
-        PPM.disableBatLoad();
-        percent = 95; // estimate still charging
-    }
-
-    if (PPM.isChargeDone()) { percent = 100; }
-
-    return percent;
-}
+int getBattery() { return 0; }
 
 /*********************************************************************
 ** Function: setBrightness
