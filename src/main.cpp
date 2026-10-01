@@ -244,6 +244,7 @@ void setup_gpio() {
  **  Config tft
  *********************************************************************/
 void begin_tft() {
+    Serial.println(">>> DBG tft A rotation/invert"); Serial.flush(); delay(30);
     tft.setRotation(bruceConfigPins.rotation); // sometimes it misses the first command
     tft.invertDisplay(bruceConfig.colorInverted);
     tft.setRotation(bruceConfigPins.rotation);
@@ -253,8 +254,11 @@ void begin_tft() {
 #else
     tftHeight = tft.height();
 #endif
+    Serial.println(">>> DBG tft B before resetTftDisplay"); Serial.flush(); delay(30);
     resetTftDisplay();
+    Serial.println(">>> DBG tft C before setBrightness"); Serial.flush(); delay(30);
     setBrightness(bruceConfig.bright, false);
+    Serial.println(">>> DBG tft D end"); Serial.flush(); delay(30);
 }
 
 /*********************************************************************
