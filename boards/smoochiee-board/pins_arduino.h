@@ -84,11 +84,13 @@ static const uint8_t SCL = 9;
 #define SDCARD_MOSI 41
 #define SDCARD_CS 42
 
-// ---- Secondary SPI bus used by Bruce for RF modules (shares the TFT bus) ----
+// ---- Secondary SPI bus used by Bruce for RF/RFID modules (shares the TFT bus) ----
 #define SPI_SCK_PIN 12
 #define SPI_MOSI_PIN 11
 #define SPI_MISO_PIN 13
-#define SPI_SS_PIN 14
+// SPI_SS_PIN is the chip-select for the RC522 (RFID2 on SPI). Give it its own
+// pin so it never collides with the NRF24 (14) or CC1101 (15) CS lines.
+#define SPI_SS_PIN 6
 
 // ---- NRF24L01 (shared SPI bus) ----
 #define USE_NRF24_VIA_SPI
