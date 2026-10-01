@@ -109,6 +109,15 @@ static const uint8_t SCL = 9;
 #define CC1101_SCK_PIN SPI_SCK_PIN
 #define CC1101_MISO_PIN SPI_MISO_PIN
 
+// ---- LoRa (SX1276 / RA-02 type, shared SPI bus) ----
+// Classic SX127x uses DIO0; the three control pins are the last free GPIOs.
+#define LORA_SCK 12
+#define LORA_MISO 13
+#define LORA_MOSI 11
+#define LORA_CS 4
+#define LORA_RST 48
+#define LORA_DIO0 46
+
 // ---- GPS (NEO-6M, UART) ----
 #define GPS_SERIAL_TX 21  // ESP TX -> GPS RX
 #define GPS_SERIAL_RX 47  // ESP RX <- GPS TX
