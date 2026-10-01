@@ -75,7 +75,13 @@ void _post_setup_gpio() {
             caldata.close();
             tft.setTouch(calData);
         } else {
-            Serial.println("No /calData yet - run touch calibration from the menu.");
+            // No saved calibration: apply a safe default so getTouch() never
+            // divides by zero (which crashes/boot-loops the device). Rough
+            // mapping for a 240x320 ILI9341 + XPT2046; refine with a real
+            // calibration pass once the touchscreen is wired.
+            uint16_t defCal[5] = {300, 3600, 300, 3600, 7};
+            tft.setTouch(defCal);
+            Serial.println("No /calData - using default touch calibration.");
         }
     }
 
