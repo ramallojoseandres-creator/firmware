@@ -71,18 +71,30 @@ bool setupSdCard(uint8_t maxFiles) {
 #else
     // Not using InputHandler (SdCard on default &SPI bus)
     if (task) {
-#ifdef SDCARD_SHARES_TFT_BUS
-        // USE_TFT_eSPI_TOUCH board whose SD is wired on the display's own SPI
-        // pins: mount it on the display's SPI instance, not the global SPI
-        // object, so two controllers don't fight over the same pins.
+#ifdef SDCARD_CUSTOM_BUS
+        // USE_TFT_eSPI_TOUCH board that manages its SD bus explicitly instead of
+        // the global SPI object. acquireSPIBus() tells the two cases apart:
+        //  - returns the display's own instance -> SD shares the TFT SPI pins.
+        //  - returns &sdcardSPI               -> SD is on its own dedicated bus.
         SPIClass *bus = acquireSPIBus(
             bruceConfigPins.SDCARD_bus.sck, bruceConfigPins.SDCARD_bus.miso, bruceConfigPins.SDCARD_bus.mosi
         );
         if (bus != nullptr && bus != &sdcardSPI) {
-            Serial.println("SDCard sharing the TFT SPI bus (eSPI touch board)");
+            Serial.println("SDCard sharing the TFT SPI bus");
             if (!SD.begin(bruceConfigPins.SDCARD_bus.cs, *bus, 4000000UL, "/sd", maxFiles)) result = false;
         } else {
-            if (!SD.begin((int8_t)bruceConfigPins.SDCARD_bus.cs, SPI, 4000000UL, "/sd", maxFiles))
+            // Dedicated reader: bring up its own SPI bus on the configured pins.
+            if (!sdcardSPI.begin(
+                    (int8_t)bruceConfigPins.SDCARD_bus.sck,
+                    (int8_t)bruceConfigPins.SDCARD_bus.miso,
+                    (int8_t)bruceConfigPins.SDCARD_bus.mosi,
+                    (int8_t)bruceConfigPins.SDCARD_bus.cs
+                )) {
+                Serial.println("Failed starting SD SPI bus");
+            }
+            delay(20);
+            Serial.println("SDCard on a dedicated SPI bus");
+            if (!SD.begin((int8_t)bruceConfigPins.SDCARD_bus.cs, sdcardSPI, 4000000UL, "/sd", maxFiles))
                 result = false;
         }
 #else

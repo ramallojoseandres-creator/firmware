@@ -76,14 +76,13 @@ static const uint8_t SCL = 9;
 #define SPI_READ_FREQUENCY 20000000
 #define SPI_TOUCH_FREQUENCY 2500000
 
-// ---- MicroSD (shared SPI bus with the display, CS on GPIO4) ----
-// Shares MOSI/SCK/MISO with the TFT, so it must reuse the display's SPI
-// instance (see SDCARD_SHARES_TFT_BUS in the .ini) instead of the global SPI
-// object, otherwise two SPI controllers fight over the same pins and crash.
-#define SDCARD_CS 4
-#define SDCARD_SCK 12
-#define SDCARD_MISO 13
-#define SDCARD_MOSI 11
+// ---- MicroSD (SEPARATE reader on its own dedicated SPI bus) ----
+// Wired to a standalone microSD module on free pins, NOT the display's slot.
+// Keeping it off the TFT bus avoids any display/touch vs SD bus contention.
+#define SDCARD_SCK 39
+#define SDCARD_MISO 40
+#define SDCARD_MOSI 41
+#define SDCARD_CS 42
 
 // ---- Secondary SPI bus used by Bruce for RF modules (shares the TFT bus) ----
 #define SPI_SCK_PIN 12
@@ -111,6 +110,10 @@ static const uint8_t SCL = 9;
 // ---- GPS (NEO-6M, UART) ----
 #define GPS_SERIAL_TX 21  // ESP TX -> GPS RX
 #define GPS_SERIAL_RX 47  // ESP RX <- GPS TX
+// Generic serial bus shares the spare UART pins so it never lands on the I2C
+// pins (SERIAL_* otherwise defaults to GROVE/I2C = 8/9 and clashes with PN532).
+#define SERIAL_TX 21
+#define SERIAL_RX 47
 
 // ---- Onboard RGB LED (ESP32-S3-DevKitC-1, WS2812 on GPIO48) ----
 // Temporarily disabled: FastLED's RMT path hangs at boot on the ESP32-S3
