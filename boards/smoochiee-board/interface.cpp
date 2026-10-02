@@ -3,6 +3,7 @@
 #include "core/utils.h"
 #include <Arduino.h>
 #include <LittleFS.h>
+#include <driver/gpio.h>
 #include <Wire.h>
 #include <interface.h>
 
@@ -72,16 +73,36 @@ void _post_setup_gpio() {
         tft.setTextColor(TFT_WHITE, TFT_BLACK);
         tft.drawCentreString("BITBANG TOUCH", tft.width() / 2, 10, 2);
         tft.drawCentreString("toca la pantalla", tft.width() / 2, 40, 2);
+        delay(300);
 
-        // Reassign the shared pins from the display's SPI peripheral to plain
-        // GPIO for the duration of the test (we only print to Serial, we do not
-        // draw during the bit-bang loop).
+        // HARDEN: fully release the shared SPI peripheral from these pads so the
+        // bit-bang really drives them (otherwise a false negative: the display's
+        // SPI controller keeps the pins and our clocks never reach the chip).
+        tft.getSPIinstance().end();
+        gpio_reset_pin((gpio_num_t)BB_CLK);
+        gpio_reset_pin((gpio_num_t)BB_MOSI);
+        gpio_reset_pin((gpio_num_t)BB_MISO);
+        gpio_reset_pin((gpio_num_t)BB_CS);
+
         pinMode(BB_CLK, OUTPUT);
         pinMode(BB_MOSI, OUTPUT);
         pinMode(BB_MISO, INPUT_PULLUP);
         pinMode(BB_CS, OUTPUT);
         digitalWrite(BB_CS, HIGH);
         digitalWrite(BB_CLK, LOW);
+
+        // GPIO13 self-test: drive it as an output high/low and read it back to
+        // prove the pin and its wire are healthy (not shorted to GND/3V3). After
+        // this we return it to INPUT_PULLUP for the real read.
+        pinMode(BB_MISO, OUTPUT);
+        digitalWrite(BB_MISO, HIGH);
+        delayMicroseconds(10);
+        int selfHigh = digitalRead(BB_MISO);
+        digitalWrite(BB_MISO, LOW);
+        delayMicroseconds(10);
+        int selfLow = digitalRead(BB_MISO);
+        pinMode(BB_MISO, INPUT_PULLUP);
+        Serial.printf("GPIO13 self-test: high=%d low=%d (expect 1 then 0)\n", selfHigh, selfLow);
 
         auto xptRead = [&](uint8_t cmd) -> uint16_t {
             uint16_t val = 0;
