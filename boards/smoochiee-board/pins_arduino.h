@@ -72,8 +72,8 @@ static const uint8_t SCL = 9;
 #define TFT_CS 10
 #define TOUCH_CS 3
 #define SMOOTH_FONT 1
-#define SPI_FREQUENCY 20000000      // 20MHz: safe for dupont/jumper wiring
-#define SPI_READ_FREQUENCY 16000000
+#define SPI_FREQUENCY 40000000
+#define SPI_READ_FREQUENCY 20000000
 #define SPI_TOUCH_FREQUENCY 2500000
 
 // ---- MicroSD (SEPARATE reader on its own dedicated SPI bus) ----
