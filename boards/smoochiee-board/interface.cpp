@@ -121,6 +121,16 @@ void _post_setup_gpio() {
         analogWrite(TFT_BL, 255);
     }
 
+    // TEMP display test: paint the screen red with text and hold 3 s.
+    //  - RED with white text  -> the display draws fine; the menu is the issue.
+    //  - CYAN with dark text   -> colors are inverted.
+    //  - stays WHITE           -> the SPI draw to the panel is broken.
+    tft.invertDisplay(0);
+    tft.fillScreen(TFT_RED);
+    tft.setTextColor(TFT_WHITE, TFT_RED);
+    tft.drawCentreString("DISPLAY TEST", tft.width() / 2, tft.height() / 2, 2);
+    delay(3000);
+
     // This ILI9341 panel renders normal colors WITHOUT inversion. Force it off
     // so a stale/inverted config value doesn't leave the whole UI white.
     bruceConfig.colorInverted = 0;
