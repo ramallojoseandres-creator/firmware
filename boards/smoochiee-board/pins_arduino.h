@@ -72,7 +72,7 @@ static const uint8_t SCL = 9;
 #define TFT_CS 10
 #define TOUCH_CS 3
 #define SMOOTH_FONT 1
-#define SPI_FREQUENCY 40000000
+#define SPI_FREQUENCY 27000000
 #define SPI_READ_FREQUENCY 20000000
 #define SPI_TOUCH_FREQUENCY 2500000
 

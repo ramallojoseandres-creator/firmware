@@ -125,6 +125,21 @@ void _post_setup_gpio() {
     // so a stale/inverted config value doesn't leave the whole UI white.
     bruceConfig.colorInverted = 0;
     tft.invertDisplay(0);
+
+    // TEMP touch diagnostic: 8 s window printing the raw XPT2046 reads.
+    // If pressed/x/y change when you touch -> the touch IC talks (calibration).
+    // If they never move -> the XPT2046 is not communicating (wiring/CS/power).
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawCentreString("TOUCH TEST - toca la pantalla", tft.width() / 2, tft.height() / 2, 2);
+    Serial.println(">>> TOUCH TEST start (8s) - touch the screen now");
+    for (int i = 0; i < 80; i++) {
+        uint16_t rx = 0, ry = 0;
+        bool pressed = tft.getTouchRaw(&rx, &ry);
+        Serial.printf(">>> RAW touch pressed=%d x=%u y=%u\n", pressed, rx, ry);
+        delay(100);
+    }
+    Serial.println(">>> TOUCH TEST end");
 }
 
 /***************************************************************************************
