@@ -64,13 +64,13 @@ static const uint8_t SCL = 9;
 #define TFT_HEIGHT 320
 #define TFT_BACKLIGHT_ON 1
 #define TFT_BL 38
-#define TFT_RST 5
+#define TFT_RST -1
 #define TFT_DC 7
 #define TFT_MISO 13
 #define TFT_MOSI 11
 #define TFT_SCLK 12
 #define TFT_CS 10
-#define TOUCH_CS 3
+#define TOUCH_CS 5
 #define SMOOTH_FONT 1
 #define SPI_FREQUENCY 27000000
 #define SPI_READ_FREQUENCY 20000000
