@@ -3,7 +3,6 @@
 #include "core/utils.h"
 #include <Arduino.h>
 #include <LittleFS.h>
-#include <driver/gpio.h>
 #include <Wire.h>
 #include <interface.h>
 
@@ -56,92 +55,6 @@ void _setup_gpio() {
 ** Description:   second stage gpio setup, runs after the display is initialized
 ***************************************************************************************/
 void _post_setup_gpio() {
-    // ---- TEMP BIT-BANG XPT2046 DIAGNOSTIC ---------------------------------
-    // Read the XPT2046 by manually toggling the SPI pins (no TFT_eSPI, no SPI
-    // peripheral). This is the decisive hardware test: if the raw values stay
-    // near 0 when you press, the T_DO wire is broken or the chip is dead; if
-    // they change when you press, the chip + wiring are fine and the TFT_eSPI
-    // read path is the problem.
-    {
-        const int BB_CLK = TFT_SCLK; // 12
-        const int BB_MOSI = TFT_MOSI; // 11
-        const int BB_MISO = TFT_MISO; // 13
-        const int BB_CS = TOUCH_CS;   // 5
-
-        tft.setRotation(ROTATION);
-        tft.fillScreen(TFT_BLACK);
-        tft.setTextColor(TFT_WHITE, TFT_BLACK);
-        tft.drawCentreString("BITBANG TOUCH", tft.width() / 2, 10, 2);
-        tft.drawCentreString("toca la pantalla", tft.width() / 2, 40, 2);
-        delay(300);
-
-        // HARDEN: fully release the shared SPI peripheral from these pads so the
-        // bit-bang really drives them (otherwise a false negative: the display's
-        // SPI controller keeps the pins and our clocks never reach the chip).
-        tft.getSPIinstance().end();
-        gpio_reset_pin((gpio_num_t)BB_CLK);
-        gpio_reset_pin((gpio_num_t)BB_MOSI);
-        gpio_reset_pin((gpio_num_t)BB_MISO);
-        gpio_reset_pin((gpio_num_t)BB_CS);
-
-        pinMode(BB_CLK, OUTPUT);
-        pinMode(BB_MOSI, OUTPUT);
-        pinMode(BB_MISO, INPUT_PULLUP);
-        pinMode(BB_CS, OUTPUT);
-        digitalWrite(BB_CS, HIGH);
-        digitalWrite(BB_CLK, LOW);
-
-        // GPIO13 self-test: drive it as an output high/low and read it back to
-        // prove the pin and its wire are healthy (not shorted to GND/3V3). After
-        // this we return it to INPUT_PULLUP for the real read.
-        pinMode(BB_MISO, OUTPUT);
-        digitalWrite(BB_MISO, HIGH);
-        delayMicroseconds(10);
-        int selfHigh = digitalRead(BB_MISO);
-        digitalWrite(BB_MISO, LOW);
-        delayMicroseconds(10);
-        int selfLow = digitalRead(BB_MISO);
-        pinMode(BB_MISO, INPUT_PULLUP);
-        Serial.printf("GPIO13 self-test: high=%d low=%d (expect 1 then 0)\n", selfHigh, selfLow);
-
-        auto xptRead = [&](uint8_t cmd) -> uint16_t {
-            uint16_t val = 0;
-            digitalWrite(BB_CS, LOW);
-            for (int i = 7; i >= 0; i--) { // 8-bit command, MSB first
-                digitalWrite(BB_MOSI, (cmd >> i) & 1);
-                digitalWrite(BB_CLK, HIGH);
-                delayMicroseconds(3);
-                digitalWrite(BB_CLK, LOW);
-                delayMicroseconds(3);
-            }
-            for (int i = 0; i < 16; i++) { // 16 clocks, 12 valid bits
-                digitalWrite(BB_CLK, HIGH);
-                delayMicroseconds(3);
-                val = (val << 1) | (digitalRead(BB_MISO) & 1);
-                digitalWrite(BB_CLK, LOW);
-                delayMicroseconds(3);
-            }
-            digitalWrite(BB_CS, HIGH);
-            return val >> 4; // 12-bit result
-        };
-
-        Serial.println("\n==== BITBANG XPT2046 TEST (15s) ====");
-        uint32_t tstart = millis();
-        while (millis() - tstart < 15000) {
-            uint16_t z1 = xptRead(0xB0); // Z1
-            uint16_t x = xptRead(0xD0);  // X
-            uint16_t y = xptRead(0x90);  // Y
-            Serial.printf("Z1=%4u X=%4u Y=%4u\n", z1, x, y);
-            delay(150);
-        }
-        Serial.println("==== END BITBANG TEST ====\n");
-
-        // Hand the pins back to the display's SPI peripheral.
-        tft.init();
-        tft.setRotation(ROTATION);
-    }
-    // ---- END TEMP DIAGNOSTIC ----------------------------------------------
-
     // Touch setup for the TFT_eSPI resistive driver.
     // We only APPLY a saved calibration here; we never run the blocking
     // calibrateTouch() at boot, so the device always reaches the menu even
