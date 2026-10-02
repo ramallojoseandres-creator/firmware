@@ -55,6 +55,35 @@ void _setup_gpio() {
 ** Description:   second stage gpio setup, runs after the display is initialized
 ***************************************************************************************/
 void _post_setup_gpio() {
+    // ---- TEMP RAW TOUCH DIAGNOSTIC ----------------------------------------
+    // Reads the XPT2046 directly (bypasses calibration) and prints raw Z
+    // (pressure) and raw X/Y for ~15 s. If Z stays near 0 and x/y stay 0 when
+    // you press, the chip is NOT responding (wiring / CS pin). If Z jumps and
+    // x/y change when you press, the chip works and we only need calibration.
+    if (validPin(TOUCH_CS)) {
+        pinMode(TOUCH_CS, OUTPUT);
+        tft.setRotation(ROTATION);
+        tft.fillScreen(TFT_BLACK);
+        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+        tft.drawCentreString("RAW TOUCH TEST", tft.width() / 2, 10, 2);
+        tft.drawCentreString("toca la pantalla", tft.width() / 2, 40, 2);
+        Serial.println("\n==== RAW TOUCH TEST (15s) ====");
+        uint32_t tstart = millis();
+        while (millis() - tstart < 15000) {
+            uint16_t rx = 0, ry = 0;
+            uint16_t z = tft.getTouchRawZ();
+            bool got = tft.getTouchRaw(&rx, &ry);
+            Serial.printf("Z=%4u rawX=%4u rawY=%4u got=%d\n", z, rx, ry, got);
+            tft.fillRect(0, 70, tft.width(), 40, TFT_BLACK);
+            char buf[48];
+            snprintf(buf, sizeof(buf), "Z=%u X=%u Y=%u", z, rx, ry);
+            tft.drawCentreString(buf, tft.width() / 2, 80, 2);
+            delay(150);
+        }
+        Serial.println("==== END RAW TOUCH TEST ====\n");
+    }
+    // ---- END TEMP DIAGNOSTIC ----------------------------------------------
+
     // Touch setup for the TFT_eSPI resistive driver.
     // We only APPLY a saved calibration here; we never run the blocking
     // calibrateTouch() at boot, so the device always reaches the menu even
